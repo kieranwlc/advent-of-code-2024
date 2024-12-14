@@ -15,23 +15,24 @@ fn main() {
 
     println!("Sum: {}", sum);
 
-    let input_reversed = message.chars().rev().collect::<String>();
-    let dodont_regex = Regex::new(r"(\)\(od)|(\)\(t'nod)").unwrap();
+    let full_regex = Regex::new(r"(do\(\))|(don't\(\))|mul\(\d+,\d+\)").unwrap();
     let mut sum_p2: i32 = 0;
     
-    for mul in mul_regex.find_iter(&message) {
-        let digit_regex = Regex::new(r"\d+").unwrap();
-        let digits: Vec<_> = digit_regex.find_iter(mul.as_str()).map(|s| s.as_str()).collect();
+    let mut doit: bool = true;
+    
+    for tok in full_regex.find_iter(&message) {
+        println!("{}", tok.as_str());
 
-        let mul_offset = message.len() - mul.start();
-        let last_instruction = dodont_regex.find_at(&input_reversed, mul_offset);
-
-        if let Some(m) = last_instruction {
-            if m.as_str() == ")(t'nod" {
-                continue;
-            }
+        match tok.as_str() {
+            "do()" => { doit = true; continue; },
+            "don't()" => { doit = false; continue; },
+            _ => {}
         }
 
+        if !doit { continue };
+
+        let digit_regex = Regex::new(r"\d+").unwrap();
+        let digits: Vec<_> = digit_regex.find_iter(tok.as_str()).map(|s| s.as_str()).collect();
         sum_p2 += digits[0].parse::<i32>().unwrap() * digits[1].parse::<i32>().unwrap();
     }
 
