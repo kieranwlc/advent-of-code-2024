@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use std::time::Instant;
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
@@ -10,6 +11,10 @@ where P: AsRef<Path>, {
 }
 
 fn calc_p1(lhs: i64, rhs: &VecDeque<i64>, op: i64, target: i64) -> i64 {
+    if lhs > target {
+        return 0;
+    }
+
     if rhs.len() == 0 {
         if lhs == target {
             return lhs;
@@ -41,6 +46,10 @@ fn calc_p1(lhs: i64, rhs: &VecDeque<i64>, op: i64, target: i64) -> i64 {
 }
 
 fn calc_p2(lhs: i64, rhs: &VecDeque<i64>, op: i64, target: i64) -> i64 {
+    if lhs > target {
+        return 0;
+    }
+
     if rhs.len() == 0 {
         if lhs == target {
             return lhs;
@@ -78,6 +87,8 @@ fn calc_p2(lhs: i64, rhs: &VecDeque<i64>, op: i64, target: i64) -> i64 {
 }
 
 fn main() {
+    let now = Instant::now();
+
     let lines = read_lines("input.txt").unwrap();
 
     let mut p1_sum = 0;
@@ -85,8 +96,6 @@ fn main() {
 
     for line in lines {
         let line_str = line.unwrap();
-
-        println!("{}", line_str);
 
         let mut sides = line_str.split(": ");
 
@@ -132,4 +141,5 @@ fn main() {
 
     println!("Total of calibratd = {}", p1_sum);
     println!("Total of calibrated concat = {}", p2_sum);
+    println!("{}ms", now.elapsed().as_millis());
 }
