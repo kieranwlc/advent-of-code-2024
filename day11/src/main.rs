@@ -1,42 +1,50 @@
-use std::fs::read_to_string;
+use std::time::Instant;
+use std::{collections::HashMap, fs::read_to_string};
 
-fn blink(stone: &str, max_iterations: u32, iteration: u32, stone_count: &mut u32) {
-    if iteration == max_iterations {
-        return;
+fn blink(
+    stone: String, 
+    remaining_iterations: u64, 
+    map: &mut HashMap<(String, u64), u64>,
+) -> u64 {
+    if remaining_iterations == 0 {
+        return 1;
     }
 
-    if stone == "0" {
-        blink("1", max_iterations, iteration + 1, stone_count);
-        return;
+    if let Some(stones) = map.get(&(stone.clone(), remaining_iterations)) { 
+        return *stones;
     }
 
-    if stone.len() % 2 == 0 {
-        *stone_count += 1;
+    let stone_count = 
+        if stone == "0" {
+            blink("1".to_string(), remaining_iterations - 1, map)
+        } 
+        else if stone.len() % 2 == 0 {
+            let (left, right) = stone.split_at(stone.len()/2);
+            blink(left.parse::<u64>().unwrap().to_string(), remaining_iterations - 1, map) +
+                blink(right.parse::<u64>().unwrap().to_string(), remaining_iterations - 1, map)
 
-        let (left, right) = stone.split_at(stone.len()/2);
-        blink(left, max_iterations, iteration + 1, stone_count);
+        } 
+        else {
+            blink((stone.parse::<u64>().unwrap() * 2024).to_string(), 
+                remaining_iterations - 1, map)
+        };
 
-        let right = &right.parse::<u64>().unwrap().to_string();
-        blink(right, max_iterations, iteration + 1, stone_count);
-        return;
-    }
-
-    let new_stone = &(stone.parse::<u64>().unwrap() * 2024).to_string();
-    blink(new_stone, max_iterations, iteration + 1, stone_count);
+    map.insert((stone, remaining_iterations), stone_count);
+    return stone_count;
 }
 
 fn main() {
+    let now = Instant::now();
     let input = read_to_string("input.txt").unwrap();
-    let stones: Vec<&str> = input.split_whitespace().collect();
+    let initial_stones: Vec<String> = input.split_whitespace().map(|s| s.to_string()).collect();
 
-    let mut stone_count = stones.len() as u32;
-    for stone in stones {
-        if stone.len() == 0 {
-            continue;
-        }
+    let mut stone_map = HashMap::new();
 
-        blink(stone, 25, 0, &mut stone_count);
+    let mut stone_count = 0;
+    for stone in initial_stones {
+        stone_count += blink(stone, 75, &mut stone_map);
     }
 
     println!("Stones {}", stone_count);
+    println!("{}ms", now.elapsed().as_millis());
 }
