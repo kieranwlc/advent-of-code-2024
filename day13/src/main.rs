@@ -1,45 +1,26 @@
 use std::fs::read_to_string;
 use std::time::Instant;
-use eqsolver::multivariable::MultiVarNewtonFD;
-use nalgebra::{vector, Vector2};
 use regex::Regex;
 
 struct Machine {
-    a: (f64, f64),
-    b: (f64, f64),
-    z: (f64, f64),
+    a: (i64, i64),
+    b: (i64, i64),
+    z: (i64, i64),
 }
 
-fn solve_machine(m: &Machine) -> Option<u64> {
-    let f = |v: Vector2<f64>| vector![
-        m.a.0 as f64 * v[0] + m.b.0 as f64 * v[1] - m.z.0 as f64, 
-        m.a.1 as f64 * v[0] + m.b.1 as f64 * v[1] - m.z.1 as f64,
-    ];
+fn solve_machine(m: &Machine) -> Option<i64> {
+    let d = m.a.0 * m.b.1 - m.a.1 * m.b.0;
+    let dx = m.z.0 * m.b.1 - m.z.1 * m.b.0;
+    let dy = m.a.0 * m.z.1 - m.a.1 * m.z.0;
 
-    let solution = 
-        if let Ok(sol) = MultiVarNewtonFD::new(f).solve(vector![1., 1.]) {
-            sol
-        }
-        else {
-            return None;
-        };
-
-    let solution_rounded = (
-        (solution.x * 1000.).round() / 1000.,
-        (solution.y * 1000.).round() / 1000.,
-    );
-
-    if solution_rounded.0.fract() != 0.0 || solution_rounded.1.fract() != 0.0 {
-        return None;
+    if dx % d != 0 || dy % d != 0 {
+        return None
     }
 
-    println!("{} * ({} {}), {} * ({} {}) = ({} {})", 
-        solution_rounded.0, m.a.0, m.a.1, 
-        solution_rounded.1, m.b.0, m.b.1,
-        m.z.0, m.z.1
-    );
+    let x = dx / d;
+    let y = dy / d;
 
-    return Some((solution_rounded.0 * 3. + solution_rounded.1) as u64);
+    return Some((x * 3 + y) as i64);
 }
 
 fn main() {
@@ -48,15 +29,22 @@ fn main() {
     let machines_txt = input.split("\n\n");
 
     let mut machines: Vec<Machine> = Vec::new();
+    let mut machines_2: Vec<Machine> = Vec::new();
 
     let number_regex = Regex::new(r"\d+").unwrap();
     for machine in machines_txt {
-        let values: Vec<u64> = number_regex.find_iter(machine)
+        let values: Vec<i64> = number_regex.find_iter(machine)
             .map(|s| s.as_str().parse().unwrap()).collect();
         machines.push(Machine { 
-            a: (values[0] as f64, values[1] as f64), 
-            b: (values[2] as f64, values[3] as f64), 
-            z: (values[4] as f64, values[5] as f64), 
+            a: (values[0], values[1]), 
+            b: (values[2], values[3]), 
+            z: (values[4], values[5]), 
+        });
+
+        machines_2.push(Machine { 
+            a: (values[0], values[1]), 
+            b: (values[2], values[3]), 
+            z: (values[4] + 10000000000000, values[5] + 10000000000000), 
         });
     }
 
