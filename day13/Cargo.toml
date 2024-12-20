@@ -1,0 +1,9 @@
+[package]
+name = "day13"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eqsolver = "0.2.0"
+nalgebra = "0.33.2"
+regex = "1.11.1"
