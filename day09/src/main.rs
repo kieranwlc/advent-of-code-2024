@@ -1,150 +1,87 @@
 use std::fs::read_to_string;
 use std::time::Instant;
-use std::{u32, u64};
+use std::u64;
 
-fn mv_frag(digits: &mut Vec<u32>) -> u64 {
-    let mut checksum: u64 = 0;
-
-    let mut blocks_added: u64 = 0;
-    let mut index: usize = 0;
-    let mut start_id: u64 = 0;
-    let mut mv_index: usize = match digits.len() % 2 {
-        1 => {digits.len() - 1}
-        _ => {digits.len() - 2}
-    };
-    let mut mv_id: u64 = match digits.len() % 2 {
-        0 => {(digits.len() as u64) / 2}
-        _ => {(digits.len() as u64 - 1) / 2}
-    };
-
-    while index < digits.len() {
-        if digits[index] == 0 {
-            index += 1;
-            continue;
-        }
-
-        match index % 2 {
-            0 => {
-                checksum += start_id * blocks_added;
-                digits[index] -= 1;
-                if digits[index] == 0 {
-                    start_id += 1;
-                }
-            },
-            _ => {
-                if mv_index <= index {
-                    index += 1;
-                    continue;
-                }
-
-                checksum += mv_id * blocks_added;
-                digits[index] -= 1;
-                digits[mv_index] -= 1;
-
-                if digits[mv_index] == 0 {
-                    mv_id -= 1;
-                }
-
-                while digits[mv_index] == 0 && mv_index > index {
-                    mv_index -= 2;
-                }
-            }
-        };
-
-        blocks_added += 1;
-    }
-
-    return checksum;
+#[derive(Clone, Copy)]
+struct Region {
+    id: u64,
+    size: u64,
+    empty: u64
 }
 
-fn mv_unfrag(digits: &mut Vec<u32>) -> u64 {
-    let mut checksum = 0;
+fn defrag(regions: &mut Vec<Region>) {
+    let mut focus_region_i = regions.len() - 1;
+    'regions: while focus_region_i > 0 {
+        println!("Focus {} {} {}", 
+            regions[focus_region_i].id,
+            regions[focus_region_i].size,
+            regions[focus_region_i].empty
+        );
 
-    let mut digit_index = 0;
-    let mut file_id = 0;
-    while digit_index < digits.len() {
-        digits[digit_index] += file_id * 10;
-        println!("{}", digits[digit_index]);
-        file_id += 1;
-        digit_index += 2;
-    }
+        for check_i in 0..focus_region_i {
+            if regions[check_i].empty >= regions[focus_region_i].size {
+                println!("MV file {} to FS after file {}", 
+                    regions[focus_region_i].id,
+                    check_i);
 
-    let mut mv_index: usize = match digits.len() % 2 {
-        1 => {digits.len() - 1}
-        _ => {digits.len() - 2}
-    };
+                let new_space = regions[check_i].empty - regions[focus_region_i].size;
 
-    while mv_index >= 2 {
-        let mut space_index = 1;
-        let digit_val = digits[mv_index] % 10;
-
-        while space_index < mv_index {
-            if digits[space_index] >= digit_val {
-                if (mv_index + 1) < digits.len() {
-                    digits[mv_index - 1] += digits[mv_index + 1];
-                    digits.remove(mv_index + 1);
-                }
-                digits[mv_index - 1] += digit_val;
-                digits.remove(mv_index);
-                digits.insert(space_index + 1, 0);
-                digits.insert(space_index + 2, digits[mv_index]);
-
-                println!("Val {} fits in {}", digit_val, digits[space_index]);
-                break;
+                regions[focus_region_i - 1].empty += regions[focus_region_i].size + regions[focus_region_i].empty;
+                regions[check_i].empty = 0;
+                let mut swap = regions.remove(focus_region_i);
+                swap.empty = new_space;
+                regions.insert(check_i + 1, swap);
+                continue 'regions;
             }
-
-            space_index += 2;
         }
 
-        mv_index -= 2;
+        println!("No space");
+
+        focus_region_i -= 1;
     }
+}
 
-    let mut blocks_added: u64 = 0;
+fn checksum(regions: &Vec<Region>) -> u64 {
+    let mut sum = 0;
+    let mut block_count = 0;
 
-    let mut digit_index = 0;
-    while digit_index < digits.len() {
-        print!("{} ", digits[digit_index]);
-        digit_index += 2
-    }
-    print!("{}", "\n");
-
-    let mut digit_index = 0;
-    while digit_index < digits.len() {
-        if digits[digit_index] % 10 == 0 {
-            digit_index += 2;
-            continue;
+    for region in regions {
+        for _ in 0..region.size {
+            sum += block_count * region.id;
+            block_count += 1;
         }
 
-        let file_id: u64 = digits[digit_index] as u64 / 10;
-
-        checksum += file_id * blocks_added;
-        blocks_added += 1;
-        digits[digit_index] -= 1;
-
-        if digits[digit_index] % 10 == 0 {
-            digit_index += 2
+        for _ in 0..region.empty {
+            block_count += 1;
         }
     }
 
-    return checksum;
+    return sum; 
 }
 
 fn main() {
     let now = Instant::now();
 
     let input = read_to_string("input.txt").unwrap();
-    let input_chars_as_digits = input.chars().map(|c| c.to_digit(10));
-    let mut digits: Vec<u32> = Vec::new();
+    let conv = input.chars().map(|c| c.to_digit(10));
+    let mut digits: Vec<u64> = Vec::new();
 
-    for charopt in input_chars_as_digits {
-        if let None = charopt {
-            continue;
+    for o in conv {
+        if let Some(d) = o {
+            digits.push(d as u64);
         }
-
-        digits.push(charopt.unwrap());
     }
 
-    println!("Fragmented {}", mv_frag(&mut digits.clone()));
-    println!("Defragmented {}", mv_unfrag(&mut digits.clone()));
+    let mut regions_p1: Vec<Region> = Vec::new();
+    let mut regions_p2: Vec<Region> = Vec::new();
+
+    for i in (0..digits.len()).step_by(2) {
+        regions_p1.push(Region { id: i as u64 / 2, size: digits[i], empty: *digits.get(i + 1).unwrap_or(&0) });
+        regions_p2.push(Region { id: i as u64 / 2, size: digits[i], empty: *digits.get(i + 1).unwrap_or(&0) });
+    }
+
+    defrag(&mut regions_p2);
+    println!("P2 Checksum: {}", checksum(&regions_p2));
+
     println!("{}ms", now.elapsed().as_millis());
 }
